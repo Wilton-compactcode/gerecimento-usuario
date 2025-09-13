@@ -407,7 +407,7 @@ const ModalSidebar = styled.div`
 `;
 
 const ProfileImageContainer = styled.div`
-  width: 220px;
+  width: 120px;
   height: 120px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -417,6 +417,16 @@ const ProfileImageContainer = styled.div`
   margin-bottom: 16px;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 3px solid transparent;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: #3b82f6;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+  }
 `;
 
 const ProfileImagePlaceholder = styled.div`
@@ -839,7 +849,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       }
       
       setUsers(filteredUsers);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching users:', error);
     }
   }, [filterName, filterLevel, filterStatus, navigate]);
@@ -856,7 +866,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
         await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario_Nivel/Listar', {
           headers: { Authorization: `Bearer ${token}` },
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching levels:', error);
       }
     };
@@ -965,7 +975,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       setEditModalOpen(false);
       setEditFormLocked(true);
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user:', error);
     }
   };
@@ -975,17 +985,54 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     
     try {
       const token = localStorage.getItem('token');
-      // Usar endpoint correto para desativar usuário
-      await axios.put('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Desativar', [{
-        id: selectedUser.id
-      }], {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (!token) {
+        alert('Token de autenticação não encontrado. Faça login novamente.');
+        navigate('/');
+        return;
+      }
+
+      console.log('🔧 Desativando usuário via API...');
+      
+      // Usar o endpoint de atualização com campo desativadoSN = true
+      const updatePayload: any = {
+        id: selectedUser.id,
+        nome: selectedUser.nome,
+        id_Usuario_Nivel: selectedUser.id_Usuario_Nivel,
+        desativadoSN: true // Desativar usuário
+      };
+
+      // Adicionar apelido se existir
+      if (selectedUser.apelido) {
+        updatePayload.apelido = selectedUser.apelido;
+      }
+
+      const response = await axios.put(
+        'https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Atualizar',
+        [updatePayload],
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.status === 200) {
+        console.log('✅ Usuário desativado com sucesso via API');
+        alert(`Usuário "${selectedUser.nome}" foi desativado com sucesso!`);
+      }
       
       setDeleteModalOpen(false);
-      fetchUsers();
-    } catch (error) {
-      console.error('Error deactivating user:', error);
+      fetchUsers(); // Atualizar lista para refletir mudanças
+    } catch (error: any) {
+      console.error('❌ Erro ao desativar usuário:', error);
+      
+      let errorMessage = 'Erro ao desativar usuário.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Token expirado. Faça login novamente.';
+        navigate('/');
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -1004,7 +1051,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       setDeactivateModalOpen(false);
       setEditModalOpen(false);
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deactivating user:', error);
     }
   };
@@ -1212,10 +1259,26 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
 
                <ModalBody>
                  <ModalSidebar>
-                   <ProfileImageContainer>
+                   <ProfileImageContainer title="Clique para alterar foto">
                      <ProfileImagePlaceholder>
                        {getInitials(selectedUser?.nome)}
                      </ProfileImagePlaceholder>
+                     {/* Ícone de câmera sobreposto */}
+                     <div style={{
+                       position: 'absolute',
+                       bottom: '8px',
+                       right: '8px',
+                       backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                       borderRadius: '50%',
+                       width: '24px',
+                       height: '24px',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       fontSize: '12px'
+                     }}>
+                       📷
+                     </div>
                    </ProfileImageContainer>
                    <ProfileName>{selectedUser?.nome || 'Nome não disponível'}</ProfileName>
                    <ProfileRole>
@@ -1276,6 +1339,55 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
                     </FormGroup>
                   </FormGrid>
 
+                  {/* Status do usuário */}
+                  <FormGroup>
+                    <FormLabel>Status da conta</FormLabel>
+                    <div style={{ 
+                      padding: '12px', 
+                      border: `1px solid ${selectedUser?.desativadoSN ? '#ef4444' : '#22c55e'}`,
+                      borderRadius: '8px',
+                      backgroundColor: selectedUser?.desativadoSN ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ 
+                        color: selectedUser?.desativadoSN ? '#ef4444' : '#22c55e',
+                        fontWeight: '500'
+                      }}>
+                        {selectedUser?.desativadoSN ? '🔴 Conta Desativada' : '🟢 Conta Ativa'}
+                      </span>
+                      {selectedUser?.desativadoSN && !editFormLocked && (
+                        <ModalButton 
+                          variant="primary" 
+                          onClick={async () => {
+                            try {
+                              const token = localStorage.getItem('token');
+                              await axios.put('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Atualizar', [{
+                                id: selectedUser.id,
+                                nome: selectedUser.nome,
+                                id_Usuario_Nivel: selectedUser.id_Usuario_Nivel,
+                                desativadoSN: false,
+                                ...(selectedUser.apelido ? { apelido: selectedUser.apelido } : {})
+                              }], {
+                                headers: { Authorization: `Bearer ${token}` }
+                              });
+                              alert('Usuário reativado com sucesso!');
+                              setEditModalOpen(false);
+                              fetchUsers();
+                            } catch (error: any) {
+                              console.error('Erro ao reativar usuário:', error);
+                              alert('Erro ao reativar usuário.');
+                            }
+                          }}
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                        >
+                          Reativar Conta
+                        </ModalButton>
+                      )}
+                    </div>
+                  </FormGroup>
+
                   <ModalActions>
                     <ModalButton onClick={() => setEditModalOpen(false)}>
                       Cancelar
@@ -1294,20 +1406,22 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
           </ModalOverlay>
         )}
 
-         {/* Modal de Confirmação de Exclusão */}
+         {/* Modal de Confirmação de Desativação */}
          {deleteModalOpen && (
            <ModalOverlay onClick={() => setDeleteModalOpen(false)}>
-             <ModalContent onClick={(e) => e.stopPropagation()} style={{ minWidth: '400px', maxWidth: '500px' }}>
+             <ModalContent onClick={(e) => e.stopPropagation()} style={{ minWidth: '450px', maxWidth: '550px' }}>
                <ModalHeader>
-                 <ModalTitle>Confirmar Exclusão</ModalTitle>
+                 <ModalTitle>Desativar Usuário</ModalTitle>
                  <CloseButton onClick={() => setDeleteModalOpen(false)}>×</CloseButton>
                </ModalHeader>
                
                <ModalMainContent>
-                 <p style={{ color: 'inherit', marginBottom: '24px' }}>
-                   Tem certeza que deseja excluir o usuário <strong>{selectedUser?.nome}</strong>?
-                   <br />
-                   Esta ação não pode ser desfeita.
+                 <p style={{ color: 'inherit', marginBottom: '16px' }}>
+                   Tem certeza que deseja desativar o usuário <strong>{selectedUser?.nome}</strong>?
+                 </p>
+                 <p style={{ color: '#22c55e', fontSize: '14px', marginBottom: '24px', backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '12px', borderRadius: '6px' }}>
+                   ✅ <strong>Funcionalidade:</strong> O usuário será desativado via API e não poderá mais acessar o sistema. 
+                   Esta ação pode ser revertida posteriormente através da edição do usuário.
                  </p>
 
                  <ModalActions>
@@ -1315,7 +1429,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
                      Cancelar
                    </ModalButton>
                    <ModalButton variant="danger" onClick={handleDeleteConfirm}>
-                     Excluir
+                     Desativar Usuário
                    </ModalButton>
                  </ModalActions>
                </ModalMainContent>
