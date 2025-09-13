@@ -1071,7 +1071,6 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     setFilterStatus('');
     setFilterName('');
     setFilterOpen(false); // Fechar o modal após limpar filtros
-    // Não precisamos chamar fetchUsers() aqui pois os useEffect já fazem isso automaticamente
   };
 
 
