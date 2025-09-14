@@ -778,11 +778,22 @@ interface User {
 }
 
 const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
-  const [users, setUsers] = useState<User[]>([]);
+  // Dados completos da API
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  // Dados filtrados (após aplicar filtros)
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  // Dados paginados (o que aparece na tela)
+  const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
+  
   const [filterName, setFilterName] = useState('');
   const [filterLevel, setFilterLevel] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
+  
+  // Estados da paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [loading, setLoading] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -803,93 +814,117 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const fetchUsers = useCallback(async () => {
+  // Buscar todos os usuários da API (sem paginação)
+  const fetchAllUsers = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/');
       return;
     }
 
-      try {
-      const params: any = {};
+    setLoading(true);
+    try {
+      console.log('🔍 Buscando TODOS os usuários da API...');
       
-      // Filtro por nome usando Search conforme documentação
-      if (filterName) {
-        params.Search = ['Nome', 'Email'];
-        params.Search_Value = filterName;
+      const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Listar', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const users = response.data || [];
+      console.log('📊 API retornou:', users.length, 'usuários');
+      
+      setAllUsers(users);
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao buscar usuários:', error);
+      if (error.response?.status === 401) {
+        navigate('/');
       }
-      
-      // Filtros por nível (podem ser múltiplos)
-      if (filterLevel.length > 0) {
-        params.Id_Usuario_Nivel = filterLevel; // Enviar diretamente o array
-      }
-      
-      // Filtro por status
-      if (filterStatus !== '') {
-        params.DesativadoSN = filterStatus === 'true';
-      }
-
-      // Log apenas quando há filtros ativos (para debug quando necessário)
-      if (filterName || filterLevel.length > 0 || filterStatus !== '') {
-        console.log('Filtros aplicados:', { filterName, filterLevel, filterStatus });
-      }
-
-        const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Listar', {
-          headers: { Authorization: `Bearer ${token}` },
-          params,
-        });
-      
-      let filteredUsers = response.data;
-      
-      // Filtro local por níveis múltiplos se necessário
-      if (filterLevel.length > 1) {
-        filteredUsers = filteredUsers.filter((user: User) =>
-          user.id_Usuario_Nivel ? filterLevel.includes(user.id_Usuario_Nivel) : false
-        );
-      }
-      
-      setUsers(filteredUsers);
-      } catch (error: any) {
-        console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [filterName, filterLevel, filterStatus, navigate]);
+  }, [navigate]);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/');
-      return;
+  // Aplicar filtros e paginação localmente
+  const applyFiltersAndPagination = useCallback(() => {
+    console.log('🔍 Aplicando filtros e paginação local...');
+    
+    let filtered = [...allUsers];
+    
+    // Filtro por nome
+    if (filterName.trim()) {
+      const searchTerm = filterName.toLowerCase().trim();
+      filtered = filtered.filter(user => 
+        (user.nome?.toLowerCase().includes(searchTerm)) ||
+        (user.email?.toLowerCase().includes(searchTerm))
+      );
+      console.log('🔍 Filtro por nome:', searchTerm, '- Resultado:', filtered.length, 'usuários');
     }
-
-    const fetchLevels = async () => {
-      try {
-        await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario_Nivel/Listar', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch (error: any) {
-        console.error('Error fetching levels:', error);
-      }
-    };
-
-    fetchLevels();
-    fetchUsers(); // Sempre buscar usuários quando os filtros mudarem
-  }, [navigate, fetchUsers]);
-
-  // Auto-aplicar filtros com debounce para pesquisa por nome
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchUsers();
-    }, 500); // Aguarda 500ms após a última digitação
-
-    return () => clearTimeout(timeoutId);
-  }, [filterName, fetchUsers]);
-
-  // Auto-aplicar filtros imediatamente para level e status
-  useEffect(() => {
-    if (filterLevel.length > 0 || filterStatus !== '') {
-      fetchUsers();
+    
+    // Filtro por nível
+    if (filterLevel.length > 0) {
+      filtered = filtered.filter(user => 
+        user.id_Usuario_Nivel && filterLevel.includes(user.id_Usuario_Nivel)
+      );
+      console.log('🔍 Filtro por nível:', filterLevel, '- Resultado:', filtered.length, 'usuários');
     }
-  }, [filterLevel, filterStatus, fetchUsers]);
+    
+    // Filtro por status
+    if (filterStatus !== '') {
+      const isInactive = filterStatus === 'true';
+      filtered = filtered.filter(user => user.desativadoSN === isInactive);
+      console.log('🔍 Filtro por status:', isInactive ? 'Inativo' : 'Ativo', '- Resultado:', filtered.length, 'usuários');
+    }
+    
+    setFilteredUsers(filtered);
+    
+    // Aplicar paginação
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const validPage = Math.min(currentPage, Math.max(1, totalPages));
+    
+    if (validPage !== currentPage && totalPages > 0) {
+      setCurrentPage(validPage);
+    }
+    
+    const startIndex = (validPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginated = filtered.slice(startIndex, endIndex);
+    
+    console.log('📄 Paginação:', {
+      totalFiltrados: filtered.length,
+      páginaAtual: validPage,
+      totalPáginas: totalPages,
+      itensPorPágina: itemsPerPage,
+      índiceInício: startIndex,
+      índiceFim: endIndex,
+      usuáriosNaPágina: paginated.length
+    });
+    
+    setPaginatedUsers(paginated);
+  }, [allUsers, filterName, filterLevel, filterStatus, currentPage, itemsPerPage]);
+
+  // Buscar dados iniciais
+  useEffect(() => {
+    fetchAllUsers();
+  }, [fetchAllUsers]);
+
+  // Aplicar filtros e paginação quando dados ou filtros mudarem
+  useEffect(() => {
+    if (allUsers.length > 0) {
+      applyFiltersAndPagination();
+    }
+  }, [allUsers, filterName, filterLevel, filterStatus, currentPage, applyFiltersAndPagination]);
+
+  // Função para realizar a busca
+  const handleSearch = useCallback(() => {
+    console.log('🔍 Iniciando busca com filtro:', filterName);
+    setCurrentPage(1); // Reset para primeira página ao buscar
+  }, [filterName]);
+
+  // Reset para primeira página quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterName, filterLevel, filterStatus]);
 
   // Detectar refresh solicitado pela navegação após criação
   useEffect(() => {
@@ -899,11 +934,12 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       setFilterName('');
       setFilterLevel([]);
       setFilterStatus('');
-      fetchUsers();
+      setCurrentPage(1);
+      fetchAllUsers();
       // Limpar o state para evitar refresh desnecessário
       navigate(location.pathname, { replace: true });
     }
-  }, [location.state, fetchUsers, navigate, location.pathname]);
+  }, [location.state, fetchAllUsers, navigate, location.pathname]);
 
   // Fechar menu quando clicar fora
   useEffect(() => {
@@ -974,7 +1010,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       
       setEditModalOpen(false);
       setEditFormLocked(true);
-      fetchUsers();
+      fetchAllUsers();
     } catch (error: any) {
       console.error('Error updating user:', error);
     }
@@ -1020,7 +1056,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       }
       
       setDeleteModalOpen(false);
-      fetchUsers(); // Atualizar lista para refletir mudanças
+      fetchAllUsers(); // Atualizar lista para refletir mudanças
     } catch (error: any) {
       console.error('❌ Erro ao desativar usuário:', error);
       
@@ -1050,7 +1086,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       
       setDeactivateModalOpen(false);
       setEditModalOpen(false);
-      fetchUsers();
+      fetchAllUsers();
     } catch (error: any) {
       console.error('Error deactivating user:', error);
     }
@@ -1063,13 +1099,14 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       filterStatus
     });
     setFilterOpen(false);
-    fetchUsers();
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
     setFilterLevel([]);
     setFilterStatus('');
     setFilterName('');
+    setCurrentPage(1);
     setFilterOpen(false); // Fechar o modal após limpar filtros
   };
 
@@ -1141,6 +1178,13 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
               placeholder="Pesquisa"
               value={filterName}
               onChange={(e) => setFilterName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  console.log('⌨️ Enter pressionado, executando busca...');
+                  handleSearch();
+                }
+              }}
             />
           </SearchContainer>
           <HeaderButtons>
@@ -1168,7 +1212,29 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
               <div>Ações</div>
             </TableHeader>
             
-            {users.map((user) => (
+            {loading ? (
+              <TableRow>
+                <div style={{ 
+                  gridColumn: '1 / -1', 
+                  textAlign: 'center', 
+                  padding: '40px', 
+                  color: '#6b7280' 
+                }}>
+                  🔍 Carregando usuários...
+                </div>
+              </TableRow>
+            ) : paginatedUsers.length === 0 ? (
+              <TableRow>
+                <div style={{ 
+                  gridColumn: '1 / -1', 
+                  textAlign: 'center', 
+                  padding: '40px', 
+                  color: '#6b7280' 
+                }}>
+                  📄 Nenhum usuário encontrado
+                </div>
+              </TableRow>
+            ) : paginatedUsers.map((user) => (
               <TableRow key={user.id} onClick={() => handleRowClick(user)}>
                 <Avatar color={getAvatarColor(user.nome)}>
                   {getInitials(user.nome)}
@@ -1212,16 +1278,68 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
 
         <Footer>
           <PaginationInfo>
-            Mostrando {users.length} de {users.length} usuários
+            {filteredUsers.length > 0 ? (
+              `Mostrando ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, filteredUsers.length)} de ${filteredUsers.length} usuários`
+            ) : (
+              'Nenhum usuário encontrado'
+            )}
           </PaginationInfo>
           <PaginationControls>
-            <PaginationButton disabled>
+            <PaginationButton 
+              disabled={currentPage === 1}
+              onClick={() => {
+                if (currentPage > 1) {
+                  const newPage = currentPage - 1;
+                  console.log('⬅️ Navegando para página anterior:', newPage);
+                  setCurrentPage(newPage);
+                }
+              }}
+            >
               ← Anterior
             </PaginationButton>
-            <PaginationButton active>
-              1
-            </PaginationButton>
-            <PaginationButton disabled>
+            
+            {/* Mostrar páginas */}
+            {Array.from({ length: Math.ceil(filteredUsers.length / itemsPerPage) }, (_, i) => i + 1)
+              .filter(page => {
+                const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+                if (totalPages <= 5) return true;
+                if (page === 1 || page === totalPages) return true;
+                if (page >= currentPage - 1 && page <= currentPage + 1) return true;
+                return false;
+              })
+              .map((page, index, array) => {
+                const prevPage = array[index - 1];
+                const showEllipsis = prevPage && page - prevPage > 1;
+                
+                return (
+                  <React.Fragment key={page}>
+                    {showEllipsis && (
+                      <span style={{ padding: '8px 4px', color: '#6b7280' }}>...</span>
+                    )}
+                    <PaginationButton
+                      active={currentPage === page}
+                      onClick={() => {
+                        console.log('🔢 Navegando para página:', page);
+                        setCurrentPage(page);
+                      }}
+                    >
+                      {page}
+                    </PaginationButton>
+                  </React.Fragment>
+                );
+              })}
+            
+            <PaginationButton 
+              disabled={currentPage >= Math.ceil(filteredUsers.length / itemsPerPage)}
+              onClick={() => {
+                const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                  const newPage = currentPage + 1;
+                  console.log('➡️ Navegando para próxima página:', newPage);
+                  setCurrentPage(newPage);
+                }
+              }}
+            >
               Próxima →
             </PaginationButton>
           </PaginationControls>
@@ -1373,7 +1491,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
                               });
                               alert('Usuário reativado com sucesso!');
                               setEditModalOpen(false);
-                              fetchUsers();
+                              fetchAllUsers();
                             } catch (error: any) {
                               console.error('Erro ao reativar usuário:', error);
                               alert('Erro ao reativar usuário.');
