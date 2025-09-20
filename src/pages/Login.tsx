@@ -290,8 +290,8 @@ const FooterText = styled.p`
 `;
 
 const Login: React.FC<LoginProps> = ({ setThemeMode, themeMode }) => {
-  const [email, setEmail] = useState('usuario@email.com');
-  const [password, setPassword] = useState('senha@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [systems, setSystems] = useState<any[]>([]);
   const [selectedSystem, setSelectedSystem] = useState<string>('');
   const [step, setStep] = useState(1);
