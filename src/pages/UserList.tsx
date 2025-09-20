@@ -789,6 +789,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
   const [filterLevel, setFilterLevel] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [levels, setLevels] = useState<Array<{id: string; descricao: string; nome?: string}>>([]);
   
   // Estados da paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -845,6 +846,22 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     }
   }, [navigate]);
 
+  // Buscar níveis disponíveis
+  const fetchLevels = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario_Nivel/Listar', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Níveis disponíveis para filtro:', response.data);
+      setLevels(response.data || []);
+    } catch (error) {
+      console.error('Error fetching levels:', error);
+    }
+  }, []);
+
   // Aplicar filtros e paginação localmente
   const applyFiltersAndPagination = useCallback(() => {
     console.log('🔍 Aplicando filtros e paginação local...');
@@ -863,9 +880,15 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     
     // Filtro por nível
     if (filterLevel.length > 0) {
-      filtered = filtered.filter(user => 
-        user.id_Usuario_Nivel && filterLevel.includes(user.id_Usuario_Nivel)
-      );
+      console.log('🔍 Valores de filtro:', filterLevel);
+      console.log('🔍 Usuários antes do filtro:', allUsers.map(u => ({ nome: u.nome, nivel: u.id_Usuario_Nivel })));
+      
+      filtered = filtered.filter(user => {
+        const userLevel = user.id_Usuario_Nivel;
+        const isIncluded = userLevel && filterLevel.includes(userLevel);
+        console.log(`🔍 Usuário ${user.nome} (nível: ${userLevel}) - Incluído: ${isIncluded}`);
+        return isIncluded;
+      });
       console.log('🔍 Filtro por nível:', filterLevel, '- Resultado:', filtered.length, 'usuários');
     }
     
@@ -906,7 +929,8 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
   // Buscar dados iniciais
   useEffect(() => {
     fetchAllUsers();
-  }, [fetchAllUsers]);
+    fetchLevels();
+  }, [fetchAllUsers, fetchLevels]);
 
   // Aplicar filtros e paginação quando dados ou filtros mudarem
   useEffect(() => {
@@ -963,20 +987,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
 
   const handleEditClick = (user: User, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedUser(user);
-    setEditFormData({
-      nome: user.nome || '',
-      apelido: user.apelido || '',
-      id_Usuario_Nivel: user.id_Usuario_Nivel || '',
-      email: user.email || '',
-      novoEmail: '',
-      confirmaEmail: '',
-      senhaAtual: '',
-      novaSenha: '',
-      confirmaSenha: ''
-    });
-    setEditFormLocked(true);
-    setEditModalOpen(true);
+    navigate(`/edit-user/${user.id}`);
     setActiveMenuId(null);
   };
 
@@ -1156,28 +1167,24 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
 
 
   const handleLevelFilterChange = (level: string, checked: boolean) => {
+    console.log('🔍 handleLevelFilterChange:', { level, checked });
     if (checked) {
-      setFilterLevel(prev => [...prev, level]);
+      setFilterLevel(prev => {
+        const newLevels = [...prev, level];
+        console.log('🔍 Adicionando nível:', level, '- Novos níveis:', newLevels);
+        return newLevels;
+      });
     } else {
-      setFilterLevel(prev => prev.filter(l => l !== level));
+      setFilterLevel(prev => {
+        const newLevels = prev.filter(l => l !== level);
+        console.log('🔍 Removendo nível:', level, '- Novos níveis:', newLevels);
+        return newLevels;
+      });
     }
   };
 
   const handleRowClick = (user: User) => {
-    setSelectedUser(user);
-    setEditFormData({
-      nome: user.nome,
-      apelido: user.apelido || '',
-      id_Usuario_Nivel: user.id_Usuario_Nivel || '',
-      email: user.email,
-      novoEmail: '',
-      confirmaEmail: '',
-      senhaAtual: '',
-      novaSenha: '',
-      confirmaSenha: ''
-    });
-    setEditModalOpen(true);
-    setEditFormLocked(true);
+    navigate(`/edit-user/${user.id}`);
   };
 
 
@@ -1651,30 +1658,22 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
             <FilterGroup>
               <FilterLabel>Nível</FilterLabel>
               <FilterCheckboxGroup>
-                <FilterCheckboxItem>
-                  <FilterCheckbox
-                    type="checkbox"
-                    checked={filterLevel.includes('ADMINISTRADOR')}
-                    onChange={(e) => handleLevelFilterChange('ADMINISTRADOR', e.target.checked)}
-                  />
-                  ADMINISTRADOR
-                </FilterCheckboxItem>
-                <FilterCheckboxItem>
-                  <FilterCheckbox
-                    type="checkbox"
-                    checked={filterLevel.includes('ENGENHARIA_01')}
-                    onChange={(e) => handleLevelFilterChange('ENGENHARIA_01', e.target.checked)}
-                  />
-                  ENGENHARIA 01
-                </FilterCheckboxItem>
-                <FilterCheckboxItem>
-                  <FilterCheckbox
-                    type="checkbox"
-                    checked={filterLevel.includes('ENGENHARIA_02')}
-                    onChange={(e) => handleLevelFilterChange('ENGENHARIA_02', e.target.checked)}
-                  />
-                  ENGENHARIA 02
-                </FilterCheckboxItem>
+                {levels.length > 0 ? (
+                  levels.map((level) => (
+                    <FilterCheckboxItem key={level.id || level.descricao}>
+                      <FilterCheckbox
+                        type="checkbox"
+                        checked={filterLevel.includes(level.id || level.descricao)}
+                        onChange={(e) => handleLevelFilterChange(level.id || level.descricao, e.target.checked)}
+                      />
+                      {level.descricao || (level as any).nome || level.id}
+                    </FilterCheckboxItem>
+                  ))
+                ) : (
+                  <div style={{ color: '#6b7280', fontSize: '14px', padding: '8px' }}>
+                    Carregando níveis...
+                  </div>
+                )}
               </FilterCheckboxGroup>
             </FilterGroup>
           </FilterModalBody>

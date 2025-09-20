@@ -340,18 +340,7 @@ const Login: React.FC<LoginProps> = ({ setThemeMode, themeMode }) => {
           <Brand>
             <Logo>GM</Logo>
             <Title>GerenteMax</Title>
-            <Subtitle>Sistema de Gerenciamento</Subtitle>
-            <div style={{ 
-              padding: '8px 16px', 
-              backgroundColor: themeMode === 'dark' ? '#4ade80' : '#f59e0b',
-              borderRadius: '6px',
-              marginTop: '16px',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: '#000'
-            }}>
-              Tema atual: {themeMode === 'light' ? 'CLARO' : 'ESCURO'} ✓
-            </div>
+            <Subtitle>Sistema de Gerenciamento</Subtitle>            
           </Brand>
 
           {step === 1 ? (

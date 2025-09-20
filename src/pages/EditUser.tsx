@@ -19,10 +19,10 @@ const theme = {
     inputBackground: '#f8fafc',
     inputBorder: '#cbd5e1',
     placeholder: '#94a3b8',
-    frameBorder: '5px solid #ef4444',
     shadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-    buttonBackground: '#3b82f6',
-    buttonText: '#ffffff',
+    modalBackground: '#ffffff',
+    modalShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
+    rowHover: '#f8fafc',
   },
   dark: {
     background: '#0f172a',
@@ -33,47 +33,32 @@ const theme = {
     inputBackground: '#181e27',
     inputBorder: '#3a4252',
     placeholder: '#6b7280',
-    frameBorder: '5px solid #22c55e',
     shadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    buttonBackground: '#3b82f6',
-    buttonText: '#ffffff',
+    modalBackground: '#232a36',
+    modalShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+    rowHover: '#2a3441',
   },
 };
 
-// Container
+// Container principal
 const Container = styled.div`
   background-color: ${({ theme }) => theme.background};
   min-height: 100vh;
   color: ${({ theme }) => theme.text};
   transition: all 0.3s ease;
   position: relative;
-`;
-
-// Header
-const Header = styled.div`
-  background-color: ${({ theme }) => theme.cardBackground};
-  padding: 16px 24px;
-  border-bottom: 1px solid ${({ theme }) => theme.border};
   display: flex;
-  justify-content: space-between;
   align-items: center;
-`;
-
-const HeaderTitle = styled.h1`
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.text};
-`;
-
-const HeaderButtons = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  justify-content: center;
+  padding: 20px;
 `;
 
 // Toggle de tema
 const ThemeToggle = styled.div`
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -85,10 +70,12 @@ const ToggleLabel = styled.span`
   font-weight: 500;
 `;
 
-const ToggleSwitch = styled.div<{ isOn: boolean }>`
+const ToggleSwitch = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isOn'
+})<{ isOn: boolean }>`
   width: 50px;
   height: 26px;
-  background-color: ${({ theme, isOn }) => isOn ? theme.buttonBackground : '#374151'};
+  background-color: ${({ theme, isOn }) => isOn ? '#3b82f6' : '#374151'};
   border-radius: 13px;
   position: relative;
   cursor: pointer;
@@ -108,7 +95,7 @@ const ToggleSwitch = styled.div<{ isOn: boolean }>`
   }
 `;
 
-// Modal Components
+// Componentes do Modal
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -123,12 +110,12 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background-color: ${({ theme }) => theme.cardBackground};
+  background-color: ${({ theme }) => theme.modalBackground};
   border-radius: 12px;
   padding: 0;
-  min-width: 600px;
-  max-width: 700px;
-  box-shadow: ${({ theme }) => theme.shadow};
+  min-width: 800px;
+  max-width: 900px;
+  box-shadow: ${({ theme }) => theme.modalShadow};
   display: flex;
   flex-direction: column;
   max-height: 90vh;
@@ -142,6 +129,83 @@ const ModalHeader = styled.div`
   padding: 20px 24px;
   border-bottom: 1px solid ${({ theme }) => theme.border};
   background-color: ${({ theme }) => theme.cardBackground};
+`;
+
+const ModalBody = styled.div`
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+`;
+
+const ModalSidebar = styled.div`
+  width: 250px;
+  background-color: ${({ theme }) => theme.cardBackground};
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1px solid ${({ theme }) => theme.border};
+`;
+
+const ProfileImageContainer = styled.div`
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: #3b82f6;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+  }
+`;
+
+const ProfileImagePlaceholder = styled.div`
+  color: white;
+  font-size: 48px;
+  font-weight: bold;
+`;
+
+const ProfileName = styled.h3`
+  color: ${({ theme }) => theme.text};
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+`;
+
+const ProfileRole = styled.p`
+  color: ${({ theme }) => theme.secondaryText};
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+`;
+
+const ModalMainContent = styled.div`
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+`;
+
+const FormTitle = styled.h2`
+  color: ${({ theme }) => theme.text};
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
 `;
 
 const ModalTitle = styled.h2`
@@ -162,17 +226,102 @@ const CloseButton = styled.button`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: ${({ theme }) => theme.border};
+    background-color: ${({ theme }) => theme.rowHover};
   }
 `;
 
-const ModalBody = styled.div`
-  padding: 24px;
-  overflow-y: auto;
+const UnlockButton = styled.button`
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    background-color: #2563eb;
+  }
+
+  &:disabled {
+    background-color: #6b7280;
+    cursor: not-allowed;
+  }
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+// Componentes do menu de três pontinhos
+const MenuContainer = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
+const MenuButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 18px;
+  font-weight: bold;
+  color: ${({ theme }) => theme.text};
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: ${({ theme }) => theme.rowHover};
+  }
+`;
+
+const MenuDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: ${({ theme }) => theme.cardBackground};
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 8px;
+  box-shadow: ${({ theme }) => theme.shadow};
+  min-width: 120px;
+  z-index: 1000;
+`;
+
+const MenuItem = styled.button`
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  text-align: left;
+  color: ${({ theme }) => theme.text};
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: ${({ theme }) => theme.rowHover};
+  }
+
+  &:first-child {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  &:last-child {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 `;
 
 const FormLabel = styled.label`
@@ -247,7 +396,7 @@ const ModalActions = styled.div`
 
 const ModalButton = styled.button.withConfig({
   shouldForwardProp: (prop) => prop !== 'variant'
-})<{ variant?: 'primary' | 'secondary' }>`
+})<{ variant?: 'primary' | 'secondary' | 'danger' }>`
   padding: 12px 20px;
   border: none;
   border-radius: 8px;
@@ -266,6 +415,18 @@ const ModalButton = styled.button.withConfig({
             background-color: #2563eb;
           }
         `;
+      case 'danger':
+        return `
+          background-color: #ef4444;
+          color: white;
+          &:hover {
+            background-color: #dc2626;
+          }
+          &:disabled {
+            background-color: #f87171;
+            cursor: not-allowed;
+          }
+        `;
       default:
         return `
           background-color: transparent;
@@ -279,9 +440,89 @@ const ModalButton = styled.button.withConfig({
   }}
 `;
 
+// Componentes específicos para o modal de exclusão
+const DeleteModalContent = styled.div`
+  background-color: ${({ theme }) => theme.modalBackground};
+  border-radius: 16px;
+  padding: 0;
+  min-width: 450px;
+  max-width: 500px;
+  box-shadow: ${({ theme }) => theme.modalShadow};
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+  border: 2px solid #fecaca;
+`;
+
+const DeleteModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid #fecaca;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+`;
+
+const DeleteModalTitle = styled.h2`
+  color: #dc2626;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const DeleteModalBody = styled.div`
+  padding: 24px;
+  text-align: center;
+`;
+
+const WarningIcon = styled.div`
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto 20px auto;
+  border: 3px solid #f59e0b;
+`;
+
+const DeleteMessage = styled.div`
+  margin-bottom: 24px;
+`;
+
+const UserName = styled.strong`
+  color: #dc2626;
+  font-weight: 600;
+`;
+
+const WarningText = styled.p`
+  margin: 16px 0 0 0;
+  font-size: 14px;
+  color: #f59e0b;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+`;
+
+const DeleteModalActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
 interface Level {
   id: string;
   descricao: string;
+  nome?: string;
 }
 
 interface User {
@@ -303,6 +544,9 @@ const EditUser: React.FC<EditUserProps> = ({ setThemeMode, themeMode }) => {
   const [idUsuarioNivel, setIdUsuarioNivel] = useState('');
   const [levels, setLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editFormLocked, setEditFormLocked] = useState(true);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -327,6 +571,7 @@ const EditUser: React.FC<EditUserProps> = ({ setThemeMode, themeMode }) => {
         const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario_Nivel/Listar', {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log('Níveis disponíveis:', response.data);
         setLevels(response.data || []);
       } catch (error) {
         console.error('Error fetching levels:', error);
@@ -399,77 +644,238 @@ const EditUser: React.FC<EditUserProps> = ({ setThemeMode, themeMode }) => {
     setThemeMode(themeMode === 'light' ? 'dark' : 'light');
   };
 
+  const handleMenuToggle = (menuId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveMenuId(activeMenuId === menuId ? null : menuId);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteModalOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Token de autenticação não encontrado. Faça login novamente.');
+      navigate('/');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await axios.delete(`https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Excluir?Id=${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      alert('Usuário excluído com sucesso!');
+      navigate('/users');
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Response Data:', error.response.data);
+        alert(`Erro ao excluir usuário: ${error.response.data?.message || 'Erro desconhecido'}`);
+      } else {
+        alert('Erro ao excluir usuário. Tente novamente.');
+      }
+    } finally {
+      setLoading(false);
+      setDeleteModalOpen(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   return (
     <ThemeProvider theme={theme[themeMode]}>
       <Container>
-        <Header>
-          <HeaderTitle>Editar Usuário</HeaderTitle>
-          <HeaderButtons>
-            <ThemeToggle>
-              <ToggleLabel>Dark Mode</ToggleLabel>
-              <ToggleSwitch isOn={themeMode === 'dark'} onClick={toggleTheme} />
-            </ThemeToggle>
-          </HeaderButtons>
-        </Header>
+        <ThemeToggle>
+          <ToggleLabel>Dark Mode</ToggleLabel>
+          <ToggleSwitch isOn={themeMode === 'dark'} onClick={toggleTheme} />
+        </ThemeToggle>
 
         <ModalOverlay>
           <ModalContent>
             <ModalHeader>
               <ModalTitle>Editar Usuário</ModalTitle>
-              <CloseButton onClick={() => navigate('/users')}>×</CloseButton>
+              <HeaderActions>
+                {editFormLocked && (
+                  <UnlockButton onClick={() => setEditFormLocked(false)}>
+                    🔓 Liberar
+                  </UnlockButton>
+                )}
+                <MenuContainer>
+                  <MenuButton onClick={(e) => handleMenuToggle('edit-modal', e)}>
+                    ⋮
+                  </MenuButton>
+                  {activeMenuId === 'edit-modal' && (
+                    <MenuDropdown>
+                      <MenuItem onClick={(e) => handleDeleteClick(e)}>
+                        Excluir
+                      </MenuItem>
+                    </MenuDropdown>
+                  )}
+                </MenuContainer>
+                <CloseButton onClick={() => navigate('/users')}>×</CloseButton>
+              </HeaderActions>
             </ModalHeader>
 
             <ModalBody>
-              <FormGroup>
-                <FormLabel>Nome *</FormLabel>
-                <FormInput
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Digite o nome completo"
-                />
-              </FormGroup>
+              <ModalSidebar>
+                <ProfileImageContainer title="Clique para alterar foto">
+                  <ProfileImagePlaceholder>
+                    {getInitials(nome)}
+                  </ProfileImagePlaceholder>
+                  {/* Ícone de câmera sobreposto */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    borderRadius: '50%',
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px'
+                  }}>
+                    📷
+                  </div>
+                </ProfileImageContainer>
+                <ProfileName>{nome || 'Nome não disponível'}</ProfileName>
+                <ProfileRole>
+                  {idUsuarioNivel ? idUsuarioNivel.replace('_', ' ') : 'Nível não definido'}
+                </ProfileRole>
+              </ModalSidebar>
 
-              <FormGroup>
-                <FormLabel>Apelido</FormLabel>
-                <FormInput
-                  type="text"
-                  value={apelido}
-                  onChange={(e) => setApelido(e.target.value)}
-                  placeholder="Ex: Fazendeiro"
-                />
-              </FormGroup>
+              <ModalMainContent>
+                <FormTitle>Dados do usuário</FormTitle>
 
-              <FormGroup>
-                <FormLabel>Nível *</FormLabel>
-                <FormSelect
-                  value={idUsuarioNivel}
-                  onChange={(e) => setIdUsuarioNivel(e.target.value)}
-                >
-                  <option value="">Selecione o nível</option>
-                  {levels.map((level) => (
-                    <option key={level.id} value={level.id}>
-                      {level.descricao}
-                    </option>
-                  ))}
-                </FormSelect>
-              </FormGroup>
+                <FormGrid>
+                  <FormGroup>
+                    <FormLabel>Nome</FormLabel>
+                    <FormInput
+                      type="text"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      disabled={editFormLocked}
+                      placeholder="Digite o nome completo"
+                    />
+                  </FormGroup>
 
-              <ModalActions>
-                <ModalButton onClick={() => navigate('/users')}>
-                  Cancelar
-                </ModalButton>
-                <ModalButton 
-                  variant="primary" 
-                  onClick={handleUpdate}
-                  disabled={loading}
-                >
-                  {loading ? 'Salvando...' : 'Salvar'}
-                </ModalButton>
-              </ModalActions>
+                  <FormGroup>
+                    <FormLabel>Apelido</FormLabel>
+                    <FormInput
+                      type="text"
+                      value={apelido}
+                      onChange={(e) => setApelido(e.target.value)}
+                      disabled={editFormLocked}
+                      placeholder="Ex: Fazendeiro"
+                    />
+                  </FormGroup>
+                </FormGrid>
+
+                <FormGrid>
+                  <FormGroup>
+                    <FormLabel>Email</FormLabel>
+                    <FormInput
+                      type="email"
+                      disabled={true}
+                      placeholder="email@exemplo.com"
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
+                    <FormLabel>Nível da conta</FormLabel>
+                    <FormSelect
+                      value={idUsuarioNivel}
+                      onChange={(e) => setIdUsuarioNivel(e.target.value)}
+                      disabled={editFormLocked}
+                    >
+                      <option value="">Selecione o nível</option>
+                      {levels.length > 0 ? (
+                        levels.map((level) => (
+                          <option key={level.id || level.descricao} value={level.id || level.descricao}>
+                            {level.descricao || (level as any).nome || level.id}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>Carregando níveis...</option>
+                      )}
+                    </FormSelect>
+                  </FormGroup>
+                </FormGrid>
+
+                <ModalActions>
+                  <ModalButton onClick={() => navigate('/users')}>
+                    Cancelar
+                  </ModalButton>
+                  <ModalButton 
+                    variant="primary" 
+                    onClick={handleUpdate}
+                    disabled={loading || editFormLocked}
+                  >
+                    {loading ? 'Salvando...' : 'Salvar'}
+                  </ModalButton>
+                </ModalActions>
+              </ModalMainContent>
             </ModalBody>
           </ModalContent>
         </ModalOverlay>
+
+        {/* Modal de Confirmação de Exclusão */}
+        {deleteModalOpen && (
+          <ModalOverlay onClick={() => setDeleteModalOpen(false)}>
+            <DeleteModalContent onClick={(e) => e.stopPropagation()}>
+              <DeleteModalHeader>
+                <DeleteModalTitle>
+                  🗑️ Confirmar Exclusão
+                </DeleteModalTitle>
+                <CloseButton onClick={() => setDeleteModalOpen(false)}>×</CloseButton>
+              </DeleteModalHeader>
+
+              <DeleteModalBody>
+                <WarningIcon>
+                  ⚠️
+                </WarningIcon>
+                
+                <DeleteMessage>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#374151', lineHeight: '1.5' }}>
+                    Tem certeza que deseja excluir o usuário
+                  </p>
+                  <UserName>{nome}</UserName>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#374151' }}>
+                    ?
+                  </p>
+                </DeleteMessage>
+
+                <WarningText>
+                  🚫 Esta ação não pode ser desfeita
+                </WarningText>
+
+                <DeleteModalActions>
+                  <ModalButton onClick={() => setDeleteModalOpen(false)}>
+                    Cancelar
+                  </ModalButton>
+                  <ModalButton 
+                    variant="danger" 
+                    onClick={handleDeleteConfirm}
+                    disabled={loading}
+                  >
+                    {loading ? 'Excluindo...' : '🗑️ Excluir'}
+                  </ModalButton>
+                </DeleteModalActions>
+              </DeleteModalBody>
+            </DeleteModalContent>
+          </ModalOverlay>
+        )}
       </Container>
     </ThemeProvider>
   );
