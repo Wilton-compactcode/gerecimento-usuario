@@ -169,7 +169,6 @@ const TableContainer = styled.div`
 const Table = styled.div`
   background-color: ${({ theme }) => theme.cardBackground};
   border-radius: 12px;
-  overflow: hidden;
   box-shadow: ${({ theme }) => theme.shadow};
   transition: all 0.3s ease;
 `;
@@ -775,6 +774,7 @@ interface User {
   apelido?: string;
   id_Pessoa?: string | null;
   menu_Principal_PersonalizadoSN?: boolean;
+  id_Importacao?: number;
 }
 
 const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
@@ -826,7 +826,7 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     try {
       console.log('🔍 Buscando TODOS os usuários da API...');
       
-      const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Listar', {
+      const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Listar?Page_Size=50', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -998,21 +998,64 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     
     try {
       const token = localStorage.getItem('token');
-      // Enviar como array conforme API v2 espera
-      await axios.put('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Atualizar', [{
+      
+      // Validações conforme documentação
+      if (!editFormData.nome.trim()) {
+        alert('Campo Nome é obrigatório!');
+        return;
+      }
+      if (!editFormData.id_Usuario_Nivel || editFormData.id_Usuario_Nivel.trim() === '') {
+        alert('Campo Nível é obrigatório!');
+        return;
+      }
+      
+      // Preparar dados exatamente como a chamada que funciona (linha 1517)
+      const updateData = [{
         id: selectedUser.id,
-        nome: editFormData.nome,
-        apelido: editFormData.apelido,
-        id_Usuario_Nivel: editFormData.id_Usuario_Nivel
-      }], {
-        headers: { Authorization: `Bearer ${token}` }
+        nome: editFormData.nome.trim(),
+        id_Usuario_Nivel: editFormData.id_Usuario_Nivel,
+        desativadoSN: selectedUser.desativadoSN || false,
+        ...(editFormData.apelido && editFormData.apelido.trim() !== '' ? { apelido: editFormData.apelido.trim() } : {})
+      }];
+      
+      console.log('📦 Payload sendo enviado:', updateData);
+      
+      // Enviar como array direto conforme documentação
+      await axios.put('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Atualizar', updateData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       setEditModalOpen(false);
       setEditFormLocked(true);
       fetchAllUsers();
+      alert('Usuário atualizado com sucesso!');
     } catch (error: any) {
       console.error('Error updating user:', error);
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+      
+      // Capturar detalhes dos erros de validação
+      if (error.response?.data?.errors) {
+        console.error('🔍 Erros de validação detalhados:', error.response.data.errors);
+        
+        // Mostrar erros específicos de validação
+        const validationErrors = error.response.data.errors;
+        let errorDetails = '';
+        
+        for (const [field, messages] of Object.entries(validationErrors)) {
+          console.error(`🔍 Campo "${field}":`, messages);
+          errorDetails += `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}\n`;
+        }
+        
+        alert(`Erro de validação:\n${errorDetails}`);
+      } else {
+        // Mostrar erro específico da API
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        alert(`Erro ao atualizar usuário: ${errorMessage}`);
+      }
     }
   };
 
@@ -1032,19 +1075,18 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       // Usar o endpoint de atualização com campo desativadoSN = true
       const updatePayload: any = {
         id: selectedUser.id,
-        nome: selectedUser.nome,
-        id_Usuario_Nivel: selectedUser.id_Usuario_Nivel,
-        desativadoSN: true // Desativar usuário
+        // nome: selectedUser.nome,
+        // id_Usuario_Nivel: selectedUser.id_Usuario_Nivel,
+        // desativadoSN: true // Desativar usuário
       };
 
       // Adicionar apelido se existir
-      if (selectedUser.apelido) {
-        updatePayload.apelido = selectedUser.apelido;
-      }
+      // if (selectedUser.apelido) {
+      //   updatePayload.apelido = selectedUser.apelido;
+      // }
 
-      const response = await axios.put(
-        'https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Atualizar',
-        [updatePayload],
+      const response = await axios.delete(
+        `https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Excluir?id=${updatePayload.id}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -1078,11 +1120,13 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     try {
       const token = localStorage.getItem('token');
       // Usar endpoint correto para desativar usuário
-      await axios.put('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Desativar', [{
-        id: selectedUser.id
-      }], {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete(
+        `https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario/Excluir?id=${selectedUser.id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
       
       setDeactivateModalOpen(false);
       setEditModalOpen(false);
