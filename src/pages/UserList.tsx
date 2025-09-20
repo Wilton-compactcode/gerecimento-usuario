@@ -855,10 +855,28 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       const response = await axios.get('https://gerentemax-dev2.azurewebsites.net/api/v2/Account/Usuario_Nivel/Listar', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Níveis disponíveis para filtro:', response.data);
-      setLevels(response.data || []);
+      console.log('📊 Resposta completa da API de níveis:', response.data);
+      
+      // A API retorna um objeto com status_Code, internal_Code, etc.
+      // Os dados reais podem estar em response.data.data ou response.data.result
+      let levelsData = [];
+      
+      if (response.data && Array.isArray(response.data)) {
+        levelsData = response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        levelsData = response.data.data;
+      } else if (response.data && response.data.result && Array.isArray(response.data.result)) {
+        levelsData = response.data.result;
+      } else {
+        console.warn('⚠️ Estrutura de resposta inesperada:', response.data);
+        // Tentar usar a resposta inteira se não encontrar array
+        levelsData = response.data ? [response.data] : [];
+      }
+      
+      console.log('📊 Níveis processados:', levelsData);
+      setLevels(levelsData);
     } catch (error) {
-      console.error('Error fetching levels:', error);
+      console.error('❌ Erro ao buscar níveis:', error);
     }
   }, []);
 
@@ -880,11 +898,12 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
     
     // Filtro por nível
     if (filterLevel.length > 0) {
-      console.log('🔍 Valores de filtro:', filterLevel);
+      console.log('🔍 Valores de filtro de nível:', filterLevel);
       console.log('🔍 Usuários antes do filtro:', allUsers.map(u => ({ nome: u.nome, nivel: u.id_Usuario_Nivel })));
       
       filtered = filtered.filter(user => {
         const userLevel = user.id_Usuario_Nivel;
+        // Comparação exata sem normalização de case
         const isIncluded = userLevel && filterLevel.includes(userLevel);
         console.log(`🔍 Usuário ${user.nome} (nível: ${userLevel}) - Incluído: ${isIncluded}`);
         return isIncluded;
@@ -1499,10 +1518,16 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
                         onChange={(e) => setEditFormData({...editFormData, id_Usuario_Nivel: e.target.value})}
                         disabled={editFormLocked}
                       >
-                        <option value="">Selecione o nível</option>
-                <option value="ADMINISTRADOR">Administrador</option>
-                <option value="ENGENHARIA_01">Engenharia 01</option>
-                <option value="ENGENHARIA_02">Engenharia 02</option>
+                      <option value="">Selecione o nível</option>
+                      {levels.length > 0 ? (
+                        levels.map((level) => (
+                          <option key={level.id || level.descricao} value={level.id || level.descricao}>
+                            {level.descricao || (level as any).nome || level.id}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>Carregando níveis...</option>
+                      )}
                       </FormSelect>
                     </FormGroup>
                   </FormGrid>
@@ -1521,8 +1546,8 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
                     }}>
                       <span style={{ 
                         color: selectedUser?.desativadoSN ? '#ef4444' : '#22c55e',
-                        fontWeight: '500'
-                      }}>
+                        fontWeight: '500'}
+                      }>
                         {selectedUser?.desativadoSN ? '🔴 Conta Desativada' : '🟢 Conta Ativa'}
                       </span>
                       {selectedUser?.desativadoSN && !editFormLocked && (
@@ -1658,17 +1683,17 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
             <FilterGroup>
               <FilterLabel>Nível</FilterLabel>
               <FilterCheckboxGroup>
-                {levels.length > 0 ? (
-                  levels.map((level) => (
-                    <FilterCheckboxItem key={level.id || level.descricao}>
-                      <FilterCheckbox
-                        type="checkbox"
-                        checked={filterLevel.includes(level.id || level.descricao)}
-                        onChange={(e) => handleLevelFilterChange(level.id || level.descricao, e.target.checked)}
-                      />
-                      {level.descricao || (level as any).nome || level.id}
-                    </FilterCheckboxItem>
-                  ))
+                  {levels.length > 0 ? (
+                    levels.map((level) => (
+                      <FilterCheckboxItem key={level.id || level.descricao}>
+                        <FilterCheckbox
+                          type="checkbox"
+                          checked={filterLevel.includes(level.id || level.descricao)}
+                          onChange={(e) => handleLevelFilterChange(level.id || level.descricao, e.target.checked)}
+                        />
+                        {level.descricao || level.nome || level.id}
+                      </FilterCheckboxItem>
+                    ))
                 ) : (
                   <div style={{ color: '#6b7280', fontSize: '14px', padding: '8px' }}>
                     Carregando níveis...
