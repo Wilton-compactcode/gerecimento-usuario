@@ -857,8 +857,6 @@ const UserList: React.FC<UserListProps> = ({ setThemeMode, themeMode }) => {
       });
       console.log('📊 Resposta completa da API de níveis:', response.data);
       
-      // A API retorna um objeto com status_Code, internal_Code, etc.
-      // Os dados reais podem estar em response.data.data ou response.data.result
       let levelsData = [];
       
       if (response.data && Array.isArray(response.data)) {
